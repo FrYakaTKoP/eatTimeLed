@@ -8,8 +8,13 @@
 
   Creator: FrYakaTKoP / 2017
 
+  Version:
+  1.0 initial release
+      - working
+      - does not use interuppt for ack button
 
- NOT WORKING! WORK IN PROGRESS VERSION!
+
+  
  
 
 
@@ -20,10 +25,10 @@
 
 // define settings:
 #define NUM_LEDS 4
-#define LED_DATA_PIN 44
-#define BUTTON_PIN 3 // pin 3 interuppt 1 on uno
+#define LED_DATA_PIN 4 // Pin D4
+#define BUTTON_PIN 3 // Pin D3 interuppt 1 on uno
 
-#define RX_IQR 0 // Receiver on interrupt 0 => that is pin #2 on uno
+#define RX_IQR 0 // Receiver on interrupt 0 => that is pin D2 on uno
 
 // serial debug true/false
 boolean debug = true;
