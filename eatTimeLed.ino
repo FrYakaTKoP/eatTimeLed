@@ -1,54 +1,55 @@
 /*
-  RF 433Mhz Keyfob controlled "come eat signal Led"
-
+  RF 433Mhz Keyfob controlled "come eat Light"
+  
+  have a look at
+  https://github.com/FrYakaTKoP/eatTimeLed 
+  for further details and instructions
+  
   based on following libaries:
   https://github.com/sui77/rc-switch/
   http://fastled.io/
   
-
   Creator: FrYakaTKoP / 2017
-
   Version:
   1.0 initial release
-      - working
-      - does not use interuppt for ack button
-
-
-  
- 
-
-
+        - working
+        - does not use interuppt for ack button
+  1.1 interuppt driven Button 
+        - now using INT1 for reset button 
+        - TBD some optimisation
 */
 
 #include <RCSwitch.h>
 #include "FastLED.h"
 
-// define settings:
-#define NUM_LEDS 4
-#define LED_DATA_PIN 4 // Pin D4
-#define BUTTON_PIN 3 // Pin D3 interuppt 1 on uno
+// ####### Settings: #################
+  #define NUM_LEDS 4 // Number of Leds on your Strip
+  #define LED_DATA_PIN 4 // Data Pin for Ledstrip => Pin D4
+  #define BUTTON_PIN 3 // Input Pin for reset Button => Pin D3 INT1 on Uno
+  #define RX_IQR 0 // Input Pin for RF Receiver => Pin D2 INT0 on uno
+  
+  // serial debug true/false
+  // set this to true if you like to sniff your Transmitter codes
+  boolean debug = false; // default false
+  
+  // Keyfob codes (dez):
+  // read the values using serial monitor after enabling debug
+  unsigned long keyfobCodes[] =
+  {
+    5592512,
+    5592332,
+    5592368,
+    5592323,
+    5594371
+  };
 
-#define RX_IQR 0 // Receiver on interrupt 0 => that is pin D2 on uno
-
-// serial debug true/false
-boolean debug = true;
-
-// Keyfob Keys (dez):
-// read the values using serial monitor after enabling debug
-unsigned long keyfobKeys[] =
-{
-  5592512,
-  5592332,
-  5592368,
-  5592323,
-  5594371
-};
-
-// blink time 
-const int blinktime = 1; // sec
+  // blink time in seconds (delay(blinktime*1000/2))
+  const int blinktime = 1; // sec
+// ###################################
 
 
-volatile int sysState = 0;
+volatile boolean resetState = false;
+int sysState = 0;
 RCSwitch rfRx = RCSwitch();
 CRGB leds[NUM_LEDS];
 
@@ -65,28 +66,24 @@ void setup() {
 
   // Button
   pinMode(BUTTON_PIN, INPUT_PULLUP);
-  //attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), processButton, FALLING);
+  attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), processButton, FALLING);
 }
 
 void loop() {
   if (rfRx.available()) {    
     processRx();
   }
-  processState();
-  if(digitalRead(BUTTON_PIN) == 0)
+  if(resetState  == true)
   {
-    processButton();
-  }
+    resetState = false;
+    processReset();
+  }  
+  processState();
 }
 
 void processButton()
-{
-  sysState = 0;
-  fill_solid(leds, NUM_LEDS, CRGB::Black); // Set all off
-  FastLED.show();
-  // enable rf Receiver
-  //rfRx.enableReceive(RX_IQR);
-  //rfRx.resetAvailable();
+{  
+  resetState = true;
 }
 
 void processRx()
@@ -104,9 +101,9 @@ void processRx()
   }
   else
   {  
-    for(int i=0; i < sizeof(keyfobKeys); i++ )
+    for(int i=0; i < sizeof(keyfobCodes); i++ )
     {
-      if(rxValue == keyfobKeys[i])
+      if(rxValue == keyfobCodes[i])
       {
         if(debug)
         {
@@ -119,7 +116,7 @@ void processRx()
         sysState = i + 1;  
         if(sysState == 1)
         {
-          //rfRx.disableReceive();  // disable Rx since we don't need it in sysState 1
+          rfRx.disableReceive();  // disable Rx since we don't need it in sysState 1
         }
         break; // exit for loop no need to scan further  
       }
@@ -139,7 +136,7 @@ void processRx()
 }
 
 void processState()
-{
+{  
   if(sysState == 1)
   {
     // Indicate eat time until reset with HW button  
@@ -162,5 +159,19 @@ void processState()
     FastLED.show();  
     sysState = 0;
   }
+}
+
+void processReset()
+{
+  // Blue short Blink to acknowledge the reset 
+  fill_solid(leds, NUM_LEDS, CRGB::Blue); // Set all Blue
+  FastLED.show();
+  delay(200);
+  fill_solid(leds, NUM_LEDS, CRGB::Black); // Set all off
+  FastLED.show();
+  // enable rf Receiver
+  rfRx.enableReceive(RX_IQR);
+  rfRx.resetAvailable();
+  sysState = 0;
 }
 
